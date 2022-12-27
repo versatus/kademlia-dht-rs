@@ -1,7 +1,7 @@
 # kademlia-dht-rs
 
 
-[![Forked From](https://gitlab.com/jeffrey-xiao/kademlia-dht-rs)
+Forked From <https://gitlab.com/jeffrey-xiao/kademlia-dht-rs>
 [![kademlia-dht](http://meritbadge.herokuapp.com/kademlia-dht)](https://crates.io/crates/kademlia-dht)
 [![Documentation](https://docs.rs/kademlia-dht/badge.svg)](https://docs.rs/kademlia-dht)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -9,6 +9,7 @@
 [![Build Status](https://travis-ci.org/jeffrey-xiao/kademlia-dht-rs.svg?branch=master)](https://travis-ci.org/jeffrey-xiao/kademlia-dht-rs)
 [![codecov](https://codecov.io/gh/jeffrey-xiao/kademlia-dht-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/jeffrey-xiao/kademlia-dht-rs)
 
+### Repository is forked from (https://gitlab.com/jeffrey-xiao/kademlia-dht-rs)
 A flexible implementation of the Kademlia distributed hash table. This library crate was mainly
 created to better understand the Rust concurrency primitives. This implementation is fairly close to
 the spec described in the original Kademlia paper with the exception of a few design considerations.
