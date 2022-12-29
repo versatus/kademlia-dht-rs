@@ -36,6 +36,8 @@ impl Node {
         let addr = format!("{}:{}", ip, port);
         let socket = UdpSocket::bind(addr).expect("Error: could not bind to address.");
         let node_data = Arc::new(NodeData {
+            ip: ip.to_string(),
+            port: port.to_string(),
             addr: socket.local_addr().unwrap().to_string(),
             id: Key::rand(),
         });
