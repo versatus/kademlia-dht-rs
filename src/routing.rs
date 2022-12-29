@@ -214,4 +214,12 @@ impl RoutingTable {
     pub fn size(&self) -> usize {
         self.buckets.len()
     }
+
+    /// Returns the number of peers
+    pub fn total_peers(&self) -> usize {
+        self.buckets.iter().fold(0, |mut sums, v| {
+            sums += v.nodes.len();
+            sums
+        })
+    }
 }
