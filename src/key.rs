@@ -1,6 +1,7 @@
 use crate::KEY_LENGTH;
 use rand;
 use serde_derive::{Deserialize, Serialize};
+use std::convert::{TryFrom, TryInto};
 use std::fmt::{Debug, Formatter, Result};
 
 /// A key that represents nodes and data.
@@ -67,13 +68,40 @@ impl Key {
         }
         ret
     }
+
+    pub fn to_key(&self) -> Vec<u8> {
+        self.0.to_vec()
+    }
+}
+
+/// This is a trait implementation for the TryFrom trait. This is used to convert a vector of bytes to a
+/// Key.
+impl TryFrom<Vec<u8>> for Key {
+    type Error = String;
+    fn try_from(value: Vec<u8>) -> std::result::Result<Self, Self::Error> {
+        let key_data = value.try_into();
+        match key_data {
+            Ok(key) => Ok(Key(key)),
+            Err(_) => Err(String::from("Error occurred while trying to construct Key ")),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::convert::TryFrom;
     use super::Key;
     use crate::KEY_LENGTH;
     use num_bigint::BigUint;
+
+    #[test]
+    fn test_key_try_from() {
+       let key=Key::rand();
+        let key_bytes=key.to_key();
+        let key_data=Key::try_from(key_bytes);
+        assert!(key_data.is_ok());
+        assert_eq!(key_data.unwrap(),key);
+    }
 
     #[test]
     fn test_rand_in_range() {
