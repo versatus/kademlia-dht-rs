@@ -131,7 +131,7 @@ const CONCURRENCY_PARAM: usize = 3;
 const REQUEST_TIMEOUT: u64 = 5000;
 
 /// Key-value pair expiration time in seconds
-const KEY_EXPIRATION: u64 = 2;
+const KEY_EXPIRATION: u64 = 2000;
 
 /// Bucket refresh interval in seconds
 const BUCKET_REFRESH_INTERVAL: u64 = 3600;

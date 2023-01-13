@@ -47,7 +47,9 @@ impl Node {
 
         // directly use update_node as update_routing_table is async
         if let Some(bootstrap_data) = bootstrap {
-            routing_table.update_node(bootstrap_data);
+            println!("updated {:?}", bootstrap_data);
+            let status = routing_table.update_node(bootstrap_data);
+            println!("Status :{:?}", status);
         }
 
         let mut ret = Node {
