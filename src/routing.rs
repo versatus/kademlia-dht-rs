@@ -10,8 +10,8 @@ use time::{Duration, SteadyTime};
 /// The nodes in the k-bucket are sorted by the time of the most recent communication with those
 /// which have been most recently communicated at the end of the list.
 #[derive(Clone, Debug)]
-struct RoutingBucket {
-    nodes: Vec<NodeData>,
+pub struct RoutingBucket {
+    pub nodes: Vec<NodeData>,
     last_update_time: SteadyTime,
 }
 
@@ -100,7 +100,7 @@ impl RoutingBucket {
 /// k-bucket splitting proposed in Section 4.2 is not implemented.
 #[derive(Clone, Debug)]
 pub struct RoutingTable {
-    buckets: Vec<RoutingBucket>,
+    pub buckets: Vec<RoutingBucket>,
     node_data: Arc<NodeData>,
 }
 

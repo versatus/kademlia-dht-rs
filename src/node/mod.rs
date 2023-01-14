@@ -3,12 +3,15 @@ pub mod node_data;
 use crate::key::Key;
 use crate::node::node_data::{NodeData, NodeDataDistancePair};
 use crate::protocol::{Message, Protocol, Request, RequestPayload, Response, ResponsePayload};
-use crate::routing::RoutingTable;
+use crate::routing::{RoutingBucket, RoutingTable};
 use crate::storage::Storage;
 use crate::{
-    BUCKET_REFRESH_INTERVAL, CONCURRENCY_PARAM, KEY_LENGTH, REPLICATION_PARAM, REQUEST_TIMEOUT,
+    BUCKET_REFRESH_INTERVAL, CONCURRENCY_PARAM, KEY_LENGTH, PING_TIME_INTERVAL, REPLICATION_PARAM,
+    REQUEST_TIMEOUT, SAMPLE_PERCENTAGE_BUCKETS_TO_PING, SAMPLE_PERCENTAGE_NODES_TO_PING,
 };
 use log::{debug, info, log, warn};
+use rand::seq::SliceRandom;
+use std::borrow::BorrowMut;
 use std::cmp;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::net::UdpSocket;
@@ -47,9 +50,7 @@ impl Node {
 
         // directly use update_node as update_routing_table is async
         if let Some(bootstrap_data) = bootstrap {
-            println!("updated {:?}", bootstrap_data);
-            let status = routing_table.update_node(bootstrap_data);
-            println!("Status :{:?}", status);
+            routing_table.update_node(bootstrap_data);
         }
 
         let mut ret = Node {
@@ -64,9 +65,38 @@ impl Node {
         ret.start_message_handler(message_rx);
         ret.start_bucket_refresher();
         ret.bootstrap_routing_table();
+        ret.check_nodes_liveness();
         ret
     }
 
+    fn check_nodes_liveness(&self) {
+        let mut node = self.clone();
+        thread::spawn(move || loop {
+            let routing_table = node.routing_table.lock().unwrap().clone();
+            let sample_size =
+                (routing_table.buckets.len() as f64 * SAMPLE_PERCENTAGE_BUCKETS_TO_PING) as usize;
+            let sampled_buckets: Vec<RoutingBucket> = routing_table
+                .buckets
+                .clone()
+                .choose_multiple(&mut rand::thread_rng(), sample_size)
+                .cloned()
+                .collect();
+            for bucket in sampled_buckets {
+                let nodes = bucket.nodes;
+                let nodes_sample_size =
+                    (nodes.len() as f64 * SAMPLE_PERCENTAGE_NODES_TO_PING) as usize;
+                let sampled_nodes: Vec<NodeData> = nodes
+                    .choose_multiple(&mut rand::thread_rng(), nodes_sample_size)
+                    .cloned()
+                    .collect();
+                for request in sampled_nodes {
+                    node.rpc_ping(&request);
+                }
+            }
+            drop(routing_table);
+            thread::sleep(Duration::from_secs(PING_TIME_INTERVAL));
+        });
+    }
     /// Starts a thread that listens to responses.
     fn start_message_handler(&self, rx: Receiver<Message>) {
         let mut node = self.clone();
@@ -249,6 +279,10 @@ impl Node {
                 Some(response)
             }
             Err(_) => {
+                println!(
+                    "{} - Request to {} timed out after waiting for {} milliseconds",
+                    self.node_data.addr, dest.addr, REQUEST_TIMEOUT
+                );
                 warn!(
                     "{} - Request to {} timed out after waiting for {} milliseconds",
                     self.node_data.addr, dest.addr, REQUEST_TIMEOUT

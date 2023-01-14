@@ -21,7 +21,7 @@ codecov = { repository = "jeffrey-xiao/kademlia-dht-rs", service = "gitlab" }
 [dependencies]
 bincode = "0.9"
 log = "0.4"
-rand = "0.4"
+rand = "0.8.5"
 serde = "1.0"
 serde_derive = "1.0"
 sha3 = "0.7"

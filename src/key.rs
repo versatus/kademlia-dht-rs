@@ -82,25 +82,27 @@ impl TryFrom<Vec<u8>> for Key {
         let key_data = value.try_into();
         match key_data {
             Ok(key) => Ok(Key(key)),
-            Err(_) => Err(String::from("Error occurred while trying to construct Key ")),
+            Err(_) => Err(String::from(
+                "Error occurred while trying to construct Key ",
+            )),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryFrom;
     use super::Key;
     use crate::KEY_LENGTH;
     use num_bigint::BigUint;
+    use std::convert::TryFrom;
 
     #[test]
     fn test_key_try_from() {
-       let key=Key::rand();
-        let key_bytes=key.to_key();
-        let key_data=Key::try_from(key_bytes);
+        let key = Key::rand();
+        let key_bytes = key.to_key();
+        let key_data = Key::try_from(key_bytes);
         assert!(key_data.is_ok());
-        assert_eq!(key_data.unwrap(),key);
+        assert_eq!(key_data.unwrap(), key);
     }
 
     #[test]

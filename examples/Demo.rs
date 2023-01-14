@@ -2,12 +2,11 @@ use clap::Parser;
 use kademlia_dht::{Key, Node, NodeData};
 use sha3::{Digest, Sha3_256};
 use std::alloc::System;
+use std::convert::TryFrom;
 use std::io;
 use std::process::exit;
 use std::thread;
 use std::time::Duration;
-use std::convert::TryFrom;
-
 
 //First Terminal Run
 // cargo run  --example Demo -- --port 8080 --is-bootstrap
@@ -23,8 +22,6 @@ use std::convert::TryFrom;
 // cargo run  --example Demo -- --port 8081 --bootstrap-key ED3B11D7B0EFF352ECEA93D1DA40E2B533BF13BD2F906B25E8675F06470A2225
 //Please choose a command: (Get/Put/Print)
 
-
-
 /// This is a simple program
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -39,9 +36,9 @@ struct Args {
     port: i16,
 }
 fn clone_into_array<A, T>(slice: &[T]) -> A
-    where
-        A: Sized + Default + AsMut<[T]>,
-        T: Clone,
+where
+    A: Sized + Default + AsMut<[T]>,
+    T: Clone,
 {
     let mut a = Default::default();
     <A as AsMut<[T]>>::as_mut(&mut a).clone_from_slice(slice);
@@ -58,6 +55,8 @@ fn main() {
     let args = Args::parse();
     let mut node = if args.is_bootstrap {
         let n = Node::new("127.0.0.1", args.port.to_string().as_str(), None);
+        let k = n.node_data().id.0;
+        println!("Key {:?}", hex::encode(k.to_vec()));
         println!("Node Key is {:?}", n.node_data().id);
         n
     } else {
