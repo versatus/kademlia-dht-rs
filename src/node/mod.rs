@@ -97,6 +97,7 @@ impl Node {
             thread::sleep(Duration::from_secs(PING_TIME_INTERVAL));
         });
     }
+
     /// Starts a thread that listens to responses.
     fn start_message_handler(&self, rx: Receiver<Message>) {
         let mut node = self.clone();
@@ -297,7 +298,7 @@ impl Node {
     }
 
     /// Sends a `PING` RPC.
-    fn rpc_ping(&mut self, dest: &NodeData) -> Option<Response> {
+    pub fn rpc_ping(&mut self, dest: &NodeData) -> Option<Response> {
         self.send_request(dest, RequestPayload::Ping)
     }
 
