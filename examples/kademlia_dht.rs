@@ -4,26 +4,10 @@ use std::process::exit;
 use std::thread;
 use std::time::Duration;
 
-fn clone_into_array<A, T>(slice: &[T]) -> A
-where
-    A: Sized + Default + AsMut<[T]>,
-    T: Clone,
-{
-    let mut a = Default::default();
-    <A as AsMut<[T]>>::as_mut(&mut a).clone_from_slice(slice);
-    a
-}
-
-fn get_key(key: &str) -> Key {
-    let mut hasher = Sha3_256::default();
-    hasher.input(key.as_bytes());
-    Key(clone_into_array(hasher.result().as_slice()))
-}
 
 fn main() {
     let mut node = Node::new("127.0.0.1", "8080", None);
-
-    let key = get_key("Hello");
+    let key = Node::get_key("Hello");
     let value = "World";
     println!("Node Data {:?}", node.node_data());
     let mut node1 = Node::new("127.0.0.1", "8081", Some(node.node_data()));
@@ -45,7 +29,7 @@ fn main() {
 
     println!("Fetch Value {:?}", node1.get(&key));
 
-    let key = get_key("Sikandar");
+    let key = Node::get_key("Sikandar");
     let value = "Sikka";
     node.insert(key, value);
     thread::sleep(Duration::from_millis(7000));

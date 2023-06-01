@@ -20,6 +20,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+use sha3::{Digest, Sha3_256};
 
 /// A node in the Kademlia DHT.
 #[derive(Clone)]
@@ -68,7 +69,20 @@ impl Node {
         ret.check_nodes_liveness();
         ret
     }
-
+    fn clone_into_array<A, T>(slice: &[T]) -> A
+        where
+            A: Sized + Default + AsMut<[T]>,
+            T: Clone,
+    {
+        let mut a = Default::default();
+        <A as AsMut<[T]>>::as_mut(&mut a).clone_from_slice(slice);
+        a
+    }
+    pub fn get_key(key: &str) -> Key {
+        let mut hasher = Sha3_256::default();
+        hasher.input(key.as_bytes());
+        Key(Node::clone_into_array(hasher.result().as_slice()))
+    }
     fn check_nodes_liveness(&self) {
         let mut node = self.clone();
         thread::spawn(move || loop {
