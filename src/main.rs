@@ -1,9 +1,10 @@
 use log::{info, log};
 use sha3::{Digest, Sha3_256};
 use simplelog::{CombinedLogger, Config, Level, LevelFilter, TermLogger};
-use std::collections::HashMap;
 use std::convert::AsMut;
 use std::io;
+use std::net::{IpAddr, Ipv4Addr};
+use std::{collections::HashMap, net::SocketAddr};
 
 use kademlia_dht::{Key, Node};
 
@@ -37,17 +38,15 @@ fn main() {
     .unwrap();
 
     let mut node_map = HashMap::new();
-    let mut id = 0;
+    let mut id: u32 = 0;
     for i in 0..50 {
         if i == 0 {
-            let n = Node::new(&"localhost".to_string(), &(8900 + i).to_string(), None);
+            let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8900 + i as u16);
+            let n = Node::new(addr, None);
             node_map.insert(id, n.clone());
         } else {
-            let n = Node::new(
-                &"localhost".to_string(),
-                &(8900 + i).to_string(),
-                Some(node_map[&0].node_data()),
-            );
+            let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8900 + i as u16);
+            let n = Node::new(addr, Some(node_map[&0].node_data()));
             node_map.insert(id, n.clone());
         }
         id += 1;
@@ -69,11 +68,8 @@ fn main() {
         match args[0] {
             "new" => {
                 let index: u32 = args[1].parse().unwrap();
-                let node = Node::new(
-                    &"localhost".to_string(),
-                    &(8900 + id).to_string(),
-                    Some(node_map[&index].node_data()),
-                );
+                let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8900 + id as u16);
+                let node = Node::new(addr, Some(node_map[&index].node_data()));
                 node_map.insert(id, node);
                 id += 1;
             }

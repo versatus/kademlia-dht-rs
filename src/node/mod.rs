@@ -11,16 +11,16 @@ use crate::{
 };
 use log::{debug, info, log, warn};
 use rand::seq::SliceRandom;
+use sha3::{Digest, Sha3_256};
 use std::borrow::BorrowMut;
 use std::cmp;
 use std::collections::{BinaryHeap, HashMap, HashSet};
-use std::net::UdpSocket;
+use std::net::{SocketAddr, UdpSocket};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use sha3::{Digest, Sha3_256};
 
 /// A node in the Kademlia DHT.
 #[derive(Clone)]
@@ -36,15 +36,20 @@ pub struct Node {
 impl Node {
     /// Constructs a new `Node` on a specific ip and port, and bootstraps the node with an existing
     /// node if `bootstrap` is not `None`.
-    pub fn new(ip: &str, port: &str, bootstrap: Option<NodeData>) -> Self {
-        let addr = format!("{}:{}", ip, port);
+    pub fn new(
+        // ip: &str, port: &str,
+        addr: SocketAddr,
+        bootstrap: Option<NodeData>,
+    ) -> Self {
+        // let addr = format!("{}:{}", ip, port);
         let socket = UdpSocket::bind(addr).expect("Error: could not bind to address.");
         let node_data = Arc::new(NodeData {
-            ip: ip.to_string(),
-            port: port.to_string(),
-            addr: socket.local_addr().unwrap().to_string(),
+            // ip: ip.to_string(),
+            // port: port.to_string(),
+            addr: socket.local_addr().unwrap(),
             id: Key::rand(),
         });
+
         let mut routing_table = RoutingTable::new(Arc::clone(&node_data));
         let (message_tx, message_rx) = channel();
         let protocol = Protocol::new(socket, message_tx);
@@ -70,9 +75,9 @@ impl Node {
         ret
     }
     fn clone_into_array<A, T>(slice: &[T]) -> A
-        where
-            A: Sized + Default + AsMut<[T]>,
-            T: Clone,
+    where
+        A: Sized + Default + AsMut<[T]>,
+        T: Clone,
     {
         let mut a = Default::default();
         <A as AsMut<[T]>>::as_mut(&mut a).clone_from_slice(slice);

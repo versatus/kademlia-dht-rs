@@ -2,31 +2,42 @@ use crate::key::Key;
 use serde_derive::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter, Result};
+use std::net::SocketAddr;
 
 /// A struct that contains the address and id of a node.
 #[derive(PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub struct NodeData {
-    /// The ip of the node in the form of `ip`.
-    pub ip: String,
-    /// The  port opened for communication .
-    pub port: String,
-    /// The address of the node in the form of `ip:port`.
-    pub addr: String,
+    // /// The ip of the node in the form of `ip`.
+    // pub ip: String,
+    // /// The  port opened for communication .
+    // pub port: String,
+    // /// The address of the node in the form of `ip:port`.
+    // pub addr: String,
+    //
     /// The id of the node.
     pub id: Key,
+
+    /// The address of the node.
+    pub addr: SocketAddr,
 }
 
 impl NodeData {
-    pub fn new(ip: String, port: String, addr: String, id: Key) -> Self {
-        NodeData { ip, port, addr, id }
+    pub fn new(addr: SocketAddr, id: Key) -> Self {
+        NodeData {
+            // ip, port,
+            addr,
+            id,
+        }
     }
 }
 impl Debug for NodeData {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,
-            "{:?},{},{} - {:?}",
-            self.ip, self.port, self.addr, self.id
+            "{} - {:?}",
+            // self.ip, self.port,
+            self.addr,
+            self.id
         )
     }
 }
