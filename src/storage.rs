@@ -8,7 +8,7 @@ use time::{Duration, SteadyTime};
 /// A simple storage container that removes stale items.
 ///
 /// `Storage` will remove a item if it is older than `KEY_EXPIRATION` seconds.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Storage {
     items: HashMap<Key, (String, SteadyTime)>,
     publish_times: BTreeMap<SteadyTime, HashSet<Key>>,

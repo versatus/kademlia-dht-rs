@@ -23,7 +23,7 @@ use std::thread;
 use std::time::Duration;
 
 /// A node in the Kademlia DHT.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Node {
     node_data: Arc<NodeData>,
     pub routing_table: Arc<Mutex<RoutingTable>>,
@@ -36,16 +36,9 @@ pub struct Node {
 impl Node {
     /// Constructs a new `Node` on a specific ip and port, and bootstraps the node with an existing
     /// node if `bootstrap` is not `None`.
-    pub fn new(
-        // ip: &str, port: &str,
-        addr: SocketAddr,
-        bootstrap: Option<NodeData>,
-    ) -> Self {
-        // let addr = format!("{}:{}", ip, port);
+    pub fn new(addr: SocketAddr, bootstrap: Option<NodeData>) -> Self {
         let socket = UdpSocket::bind(addr).expect("Error: could not bind to address.");
         let node_data = Arc::new(NodeData {
-            // ip: ip.to_string(),
-            // port: port.to_string(),
             addr: socket.local_addr().unwrap(),
             id: Key::rand(),
         });
@@ -72,6 +65,7 @@ impl Node {
         ret.start_bucket_refresher();
         ret.bootstrap_routing_table();
         ret.check_nodes_liveness();
+
         ret
     }
     fn clone_into_array<A, T>(slice: &[T]) -> A
@@ -90,24 +84,29 @@ impl Node {
     }
     fn check_nodes_liveness(&self) {
         let mut node = self.clone();
+
         thread::spawn(move || loop {
             let routing_table = node.routing_table.lock().unwrap().clone();
             let sample_size =
                 (routing_table.buckets.len() as f64 * SAMPLE_PERCENTAGE_BUCKETS_TO_PING) as usize;
+
             let sampled_buckets: Vec<RoutingBucket> = routing_table
                 .buckets
                 .clone()
                 .choose_multiple(&mut rand::thread_rng(), sample_size)
                 .cloned()
                 .collect();
+
             for bucket in sampled_buckets {
                 let nodes = bucket.nodes;
                 let nodes_sample_size =
                     (nodes.len() as f64 * SAMPLE_PERCENTAGE_NODES_TO_PING) as usize;
+
                 let sampled_nodes: Vec<NodeData> = nodes
                     .choose_multiple(&mut rand::thread_rng(), nodes_sample_size)
                     .cloned()
                     .collect();
+
                 for request in sampled_nodes {
                     node.rpc_ping(&request);
                 }
@@ -138,8 +137,10 @@ impl Node {
     /// Starts a thread that refreshes stale routing buckets.
     fn start_bucket_refresher(&self) {
         let mut node = self.clone();
+
         thread::spawn(move || {
             thread::sleep(Duration::from_secs(BUCKET_REFRESH_INTERVAL));
+
             while node.is_active.load(Ordering::Acquire) {
                 let stale_indexes = {
                     let routing_table = match node.routing_table.lock() {
@@ -163,6 +164,7 @@ impl Node {
     /// random key in the buckets' range.
     fn bootstrap_routing_table(&mut self) {
         let target_key = self.node_data.id;
+
         self.lookup_nodes(&target_key, true);
 
         let bucket_size = { self.routing_table.lock().unwrap().size() };
@@ -299,10 +301,14 @@ impl Node {
                 Some(response)
             }
             Err(_) => {
-                println!(
-                    "{} - Request to {} timed out after waiting for {} milliseconds",
-                    self.node_data.addr, dest.addr, REQUEST_TIMEOUT
-                );
+                // TODO: Consider logging the source error
+                // dbg!(
+                //     "{} - Request to {} timed out after waiting for {} milliseconds",
+                //     &self.node_data.addr,
+                //     &dest.addr,
+                //     &REQUEST_TIMEOUT,
+                // );
+
                 warn!(
                     "{} - Request to {} timed out after waiting for {} milliseconds",
                     self.node_data.addr, dest.addr, REQUEST_TIMEOUT

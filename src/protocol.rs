@@ -62,7 +62,7 @@ pub enum Message {
 
 /// `Protocol` facilitates the underlying communication between nodes by sending messages to other
 /// nodes, and by passing messages from other nodes to the current node.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Protocol {
     socket: Arc<UdpSocket>,
 }
