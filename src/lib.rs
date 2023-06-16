@@ -142,6 +142,5 @@ const SAMPLE_PERCENTAGE_BUCKETS_TO_PING: f64 = 0.3;
 /// Sample Percentage Of Nodes in buckets to Ping.
 const SAMPLE_PERCENTAGE_NODES_TO_PING: f64 = 0.3;
 
-
 /// Ping Nodes after every N seconds
 const PING_TIME_INTERVAL: u64 = 10;

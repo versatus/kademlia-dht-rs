@@ -26,21 +26,28 @@ use std::time::Duration;
 #[derive(Debug, Clone)]
 pub struct Node {
     node_data: Arc<NodeData>,
-    pub routing_table: Arc<Mutex<RoutingTable>>,
+    routing_table: Arc<Mutex<RoutingTable>>,
     storage: Arc<Mutex<Storage>>,
     pending_requests: Arc<Mutex<HashMap<Key, Sender<Response>>>>,
     protocol: Arc<Protocol>,
     is_active: Arc<AtomicBool>,
+    // request_timeout: Option<u64>,
 }
 
 impl Node {
     /// Constructs a new `Node` on a specific ip and port, and bootstraps the node with an existing
     /// node if `bootstrap` is not `None`.
-    pub fn new(addr: SocketAddr, bootstrap: Option<NodeData>) -> Self {
+    pub fn new(
+        addr: SocketAddr,
+        udp_gossip_addr: SocketAddr,
+        bootstrap: Option<NodeData>,
+        // request_timeout: Option<u64>,
+    ) -> Self {
         let socket = UdpSocket::bind(addr).expect("Error: could not bind to address.");
         let node_data = Arc::new(NodeData {
-            addr: socket.local_addr().unwrap(),
             id: Key::rand(),
+            addr: socket.local_addr().unwrap(),
+            udp_gossip_addr,
         });
 
         let mut routing_table = RoutingTable::new(Arc::clone(&node_data));
@@ -68,6 +75,7 @@ impl Node {
 
         ret
     }
+
     fn clone_into_array<A, T>(slice: &[T]) -> A
     where
         A: Sized + Default + AsMut<[T]>,
@@ -77,11 +85,13 @@ impl Node {
         <A as AsMut<[T]>>::as_mut(&mut a).clone_from_slice(slice);
         a
     }
+
     pub fn get_key(key: &str) -> Key {
         let mut hasher = Sha3_256::default();
         hasher.input(key.as_bytes());
         Key(Node::clone_into_array(hasher.result().as_slice()))
     }
+
     fn check_nodes_liveness(&self) {
         let mut node = self.clone();
 
@@ -275,6 +285,7 @@ impl Node {
             "{} - Sending request to {} {:#?}",
             self.node_data.addr, dest.addr, payload
         );
+
         let (response_tx, response_rx) = channel();
         let mut pending_requests = self.pending_requests.lock().unwrap();
         let mut token = Key::rand();
@@ -302,8 +313,10 @@ impl Node {
             }
             Err(_) => {
                 // TODO: Consider logging the source error
+
                 // dbg!(
-                //     "{} - Request to {} timed out after waiting for {} milliseconds",
+                //     // "{} - Request to {} timed out after waiting for {} milliseconds",
+                //     &self.node_data.id,
                 //     &self.node_data.addr,
                 //     &dest.addr,
                 //     &REQUEST_TIMEOUT,
@@ -540,6 +553,12 @@ impl Node {
         } else {
             None
         }
+    }
+
+    /// Returns a reference to the `RoutingTable` associated with the node.
+    pub fn get_routing_table(&self) -> RoutingTable {
+        // TODO: address unwrap later
+        self.routing_table.try_lock().unwrap().clone()
     }
 
     /// Returns the `NodeData` associated with the node.
