@@ -9,9 +9,9 @@ use std::{collections::HashMap, net::SocketAddr};
 use kademlia_dht::{Key, Node};
 
 fn clone_into_array<A, T>(slice: &[T]) -> A
-where
-    A: Sized + Default + AsMut<[T]>,
-    T: Clone,
+    where
+        A: Sized + Default + AsMut<[T]>,
+        T: Clone,
 {
     let mut a = Default::default();
     <A as AsMut<[T]>>::as_mut(&mut a).clone_from_slice(slice);
@@ -35,7 +35,7 @@ fn main() {
     CombinedLogger::init(vec![
         TermLogger::new(LevelFilter::Info, logger_config).unwrap()
     ])
-    .unwrap();
+        .unwrap();
 
     let mut node_map = HashMap::new();
     let mut id: u32 = 0;

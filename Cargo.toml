@@ -21,7 +21,8 @@ simplelog = "0.5"
 time = "0.1"
 clap = {version="4.0.32",features=["derive"]}
 hex="*"
-
+lazy_static = "1.4.0"
+flexi_logger = {version="0.25.5",features=["compress"]}
 
 [dev-dependencies]
 num-bigint = "0.1"
