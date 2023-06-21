@@ -9,6 +9,7 @@ use crate::{
     BUCKET_REFRESH_INTERVAL, CONCURRENCY_PARAM, KEY_LENGTH, PING_TIME_INTERVAL, REPLICATION_PARAM,
     REQUEST_TIMEOUT, SAMPLE_PERCENTAGE_BUCKETS_TO_PING, SAMPLE_PERCENTAGE_NODES_TO_PING,
 };
+use flexi_logger::{FileSpec, Logger};
 use lazy_static::lazy_static;
 use log::{debug, error, info, warn, Level, LevelFilter};
 use rand::seq::SliceRandom;
