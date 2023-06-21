@@ -1,24 +1,26 @@
-use kademlia_dht::{Key, Node, NodeData};
-use sha3::{Digest, Sha3_256};
-use std::process::exit;
+use kademlia_dht::Node;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::thread;
 use std::time::Duration;
 
-
 fn main() {
-    let mut node = Node::new("127.0.0.1", "8080", None);
+    let boostrap_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
+    let node_1 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
+    let node_2 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
+    let node_3 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
+    let node_4 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
+    let node_5 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
+
+    let mut node = Node::new(boostrap_addr, boostrap_addr.clone(), None).unwrap();
     let key = Node::get_key("Hello");
     let value = "World";
     println!("Node Data {:?}", node.node_data());
-    let mut node1 = Node::new("127.0.0.1", "8081", Some(node.node_data()));
+    let mut node1 = Node::new(node_1, node_1, Some(node.node_data())).unwrap();
     node.insert(key, value);
-    let mut node2 = Node::new("127.0.0.1", "8082", Some(node.node_data()));
-
-    let mut node3 = Node::new("127.0.0.1", "8083", Some(node.node_data()));
-
-    let mut node4 = Node::new("127.0.0.1", "8084", Some(node.node_data()));
-
-    let mut node5 = Node::new("127.0.0.1", "8085", Some(node.node_data()));
+    let mut node2 = Node::new(node_2, node_2, Some(node.node_data())).unwrap();
+    let node3 = Node::new(node_3, node_3, Some(node.node_data())).unwrap();
+    let node4 = Node::new(node_4, node_4, Some(node.node_data())).unwrap();
+    let node5 = Node::new(node_5, node_5, Some(node.node_data())).unwrap();
 
     // inserting is asynchronous, so sleep for a second
     thread::sleep(Duration::from_millis(1000));
@@ -36,41 +38,34 @@ fn main() {
     println!("Fetch Value {:?}", node2.get(&key));
 
     let c = node2
-        .routing_table
-        .lock()
+        .routing_table()
         .unwrap()
         .get_closest_nodes(&node1.node_data().id, 3);
     println!("NeighbourHood for 2 :{:?}", c);
 
     let c = node1
-        .routing_table
-        .lock()
+        .routing_table()
         .unwrap()
         .get_closest_nodes(&node1.node_data().id, 3);
     println!("NeighbourHood  for 1 :{:?}", c);
 
     let c = node5
-        .routing_table
-        .lock()
+        .routing_table()
         .unwrap()
         .get_closest_nodes(&node5.node_data().id, 3);
     println!("NeighbourHood  for 5 :{:?}", c);
 
     let c = node4
-        .routing_table
-        .lock()
+        .routing_table()
         .unwrap()
         .get_closest_nodes(&node4.node_data().id, 3);
     println!("NeighbourHood  for 4 :{:?}", c);
 
     let c = node3
-        .routing_table
-        .lock()
+        .routing_table()
         .unwrap()
         .get_closest_nodes(&node3.node_data().id, 3);
 
     println!("NeighbourHood  for 3 :{:?}", c);
-    println!("Ne {:?}", node.routing_table.lock().unwrap().total_peers());
-    
-    
+    println!("Ne {:?}", node.routing_table().unwrap().total_peers());
 }

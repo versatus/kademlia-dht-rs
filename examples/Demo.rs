@@ -1,12 +1,11 @@
 use clap::Parser;
 use kademlia_dht::{Key, Node, NodeData};
 use sha3::{Digest, Sha3_256};
-use std::alloc::System;
 use std::convert::TryFrom;
 use std::io;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::process::exit;
 use std::thread;
-use std::time::Duration;
 
 //First Terminal Run
 // cargo run  --example Demo -- --port 8080 --is-bootstrap
@@ -19,7 +18,7 @@ use std::time::Duration;
 //Please choose a command: (Get/Put/Print)
 
 //Third Terminal Run
-// cargo run  --example Demo -- --port 8081 --bootstrap-key ED3B11D7B0EFF352ECEA93D1DA40E2B533BF13BD2F906B25E8675F06470A2225
+// cargo run  --example Demo -- --port 8082 --bootstrap-key ED3B11D7B0EFF352ECEA93D1DA40E2B533BF13BD2F906B25E8675F06470A2225
 //Please choose a command: (Get/Put/Print)
 
 /// This is a simple program
@@ -53,23 +52,20 @@ fn get_key(key: &str) -> Key {
 
 fn main() {
     let args = Args::parse();
+    let bootstrap_socket_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
     let mut node = if args.is_bootstrap {
-        let n = Node::new("127.0.0.1", args.port.to_string().as_str(), None);
+        let n = Node::new(bootstrap_socket_addr, bootstrap_socket_addr, None).unwrap();
         let k = n.node_data().id.0;
         println!("Key {:?}", hex::encode(k.to_vec()));
         println!("Node Key is {:?}", n.node_data().id);
         n
     } else {
+        let node_socket_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
         let data = hex::decode(&args.bootstrap_key.unwrap()).unwrap();
         println!("Key is {:?}", data);
         let key: kademlia_dht::Key = Key::try_from(data).unwrap();
-        let node_data = NodeData::new(
-            String::from("127.0.0.1"),
-            args.port.to_string(),
-            format!("{}:{}", "127.0.0.1", "8080".to_string()),
-            key,
-        );
-        Node::new("127.0.0.1", args.port.to_string().as_str(), Some(node_data))
+        let node_data = NodeData::new(key, bootstrap_socket_addr, bootstrap_socket_addr);
+        Node::new(node_socket_addr, node_socket_addr, Some(node_data)).unwrap()
     };
 
     let c = thread::spawn(move || loop {
@@ -103,8 +99,7 @@ fn main() {
         } else if command == "Print" {
             println!("Performing Print operation");
             let c = node
-                .routing_table
-                .lock()
+                .routing_table()
                 .unwrap()
                 .get_closest_nodes(&node.node_data().id, 3);
             println!("Neighbours of node {:?}", c);
@@ -114,5 +109,5 @@ fn main() {
             println!("Error: unknown command");
         }
     });
-    c.join();
+    let _=c.join();
 }

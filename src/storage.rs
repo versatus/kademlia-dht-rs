@@ -1,6 +1,6 @@
 use crate::key::Key;
 use crate::KEY_EXPIRATION;
-use log::{info, log};
+use tracing::info;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::mem;
 use time::{Duration, SteadyTime};

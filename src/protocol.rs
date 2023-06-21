@@ -2,13 +2,13 @@ use crate::key::Key;
 use crate::node::node_data::NodeData;
 use crate::MESSAGE_LENGTH;
 use bincode;
-use log::{log, warn};
 use serde_derive::{Deserialize, Serialize};
 use std::net::UdpSocket;
 use std::str;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 use std::thread;
+use tracing::{error, warn};
 
 /// An enum representing a request RPC.
 ///
@@ -50,6 +50,7 @@ pub enum ResponsePayload {
     Nodes(Vec<NodeData>),
     Value(String),
     Pong,
+    Error(String),
 }
 
 /// An enum that represents a message that is sent between nodes.
@@ -76,12 +77,13 @@ impl Protocol {
         thread::spawn(move || {
             let mut buffer = [0u8; MESSAGE_LENGTH];
             loop {
-                let (len, _src_addr) = protocol.socket.recv_from(&mut buffer).unwrap();
-                let message = bincode::deserialize(&buffer[..len]).unwrap();
-
-                if tx.send(message).is_err() {
-                    warn!("Protocol: Connection closed.");
-                    break;
+                if let Ok((len, _src_addr)) = protocol.socket.recv_from(&mut buffer) {
+                    if let Ok(message) = bincode::deserialize(&buffer[..len]) {
+                        if let Err(err) = tx.send(message) {
+                            error!("Protocol: Error sending message: {}", err);
+                            break;
+                        }
+                    }
                 }
             }
         });
@@ -90,10 +92,16 @@ impl Protocol {
 
     pub fn send_message(&self, message: &Message, node_data: &NodeData) {
         let size_limit = bincode::Bounded(MESSAGE_LENGTH as u64);
-        let buffer_string = bincode::serialize(&message, size_limit).unwrap();
+        let buffer_string = match bincode::serialize(&message, size_limit) {
+            Ok(buffer) => buffer,
+            Err(err) => {
+                error!("Protocol: Failed to serialize message: {}", err);
+                return;
+            }
+        };
         let NodeData { ref addr, .. } = node_data;
-        if self.socket.send_to(&buffer_string, addr).is_err() {
-            warn!("Protocol: Could not send data.");
+        if let Err(err) = self.socket.send_to(&buffer_string, addr) {
+            warn!("Protocol: Failed to send data: {}", err);
         }
     }
 }

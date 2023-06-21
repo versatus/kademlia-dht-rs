@@ -2,7 +2,7 @@ use crate::key::Key;
 use serde_derive::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::Debug;
-use std::net::{SocketAddr, UdpSocket};
+use std::net::SocketAddr;
 
 /// A struct that contains the address and id of a node.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]

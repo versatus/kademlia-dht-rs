@@ -1,5 +1,4 @@
 use crate::KEY_LENGTH;
-use rand;
 use serde_derive::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Debug, Formatter, Result};
