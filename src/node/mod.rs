@@ -7,15 +7,12 @@ use crate::routing::{RoutingBucket, RoutingTable};
 use crate::storage::Storage;
 use crate::{
     BUCKET_REFRESH_INTERVAL, CONCURRENCY_PARAM, KEY_LENGTH, PING_TIME_INTERVAL, REPLICATION_PARAM,
-    REQUEST_TIMEOUT, SAMPLE_PERCENTAGE_BUCKETS_TO_PING, SAMPLE_PERCENTAGE_NODES_TO_PING,
+    REQUEST_TIMEOUT, RETRY_ATTEMPTS, SAMPLE_PERCENTAGE_BUCKETS_TO_PING,
+    SAMPLE_PERCENTAGE_NODES_TO_PING,
 };
-use flexi_logger::{FileSpec, Logger};
-use lazy_static::lazy_static;
-use log::{debug, error, info, warn, Level, LevelFilter};
+use tracing::{info,debug,warn,error};
 use rand::seq::SliceRandom;
 use sha3::{Digest, Sha3_256};
-use std::borrow::BorrowMut;
-use std::cmp;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::net::{SocketAddr, UdpSocket};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -23,25 +20,8 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-lazy_static! {
-    static ref LOGGER_INIT: std::sync::Once = std::sync::Once::new();
-}
+use std::{cmp, io};
 
-fn initialize_logger() {
-    LOGGER_INIT.call_once(|| {
-        Logger::try_with_env_or_str("info")
-            .unwrap()
-            .log_to_file(FileSpec::default().directory("logs")) // Specify the directory for log files
-            .rotate(
-                // Configure log rotation based on the day or hour
-                flexi_logger::Criterion::Age(flexi_logger::Age::Day),
-                flexi_logger::Naming::Timestamps,
-                flexi_logger::Cleanup::KeepLogAndCompressedFiles(7, 2), // Keep logs for 7 days and compressed files for 2 days
-            )
-            .start()
-            .unwrap();
-    });
-}
 /// A node in the Kademlia DHT.
 #[derive(Debug, Clone)]
 pub struct Node {
@@ -61,19 +41,23 @@ impl Node {
         addr: SocketAddr,
         udp_gossip_addr: SocketAddr,
         bootstrap: Option<NodeData>,
-        // request_timeout: Option<u64>,
-    ) -> Self {
-        initialize_logger();
-        let socket = UdpSocket::bind(addr).expect("Error: could not bind to address.");
-        let addr = socket
-            .local_addr()
-            .expect("Error could not fetch local address from socket");
+    ) -> Result<Self, io::Error> {
+        let socket = UdpSocket::bind(addr).map_err(|err| {
+            error!("Error: could not bind to address: {}", err);
+            err
+        })?;
+        let addr = socket.local_addr().map_err(|err| {
+            error!(
+                "Error occurred while fetching local addr from socket :{}",
+                err
+            );
+            err
+        })?;
         let node_data = Arc::new(NodeData {
             id: Key::rand(),
             addr,
             udp_gossip_addr,
         });
-
         let mut routing_table = RoutingTable::new(Arc::clone(&node_data));
         let (message_tx, message_rx) = channel();
         let protocol = Protocol::new(socket, message_tx);
@@ -97,12 +81,13 @@ impl Node {
         ret.bootstrap_routing_table();
         ret.check_nodes_liveness();
 
-        ret
+        Ok(ret)
     }
 
-    pub fn routing_table(&self)->RoutingTable{
-        self.routing_table.lock().unwrap().clone()
+    pub fn routing_table(&self) -> Result<RoutingTable, String> {
+        self.routing_table.lock().map(|guard| guard.clone()).map_err(|_| "Error: Failed to acquire lock".to_string())
     }
+
     fn clone_into_array<A, T>(slice: &[T]) -> A
     where
         A: Sized + Default + AsMut<[T]>,
@@ -125,11 +110,12 @@ impl Node {
         thread::spawn(move || loop {
             let routing_table = match node.routing_table.lock() {
                 Ok(table) => table.clone(),
-                Err(_) => {
+                Err(err) => {
+                    error!("Failed to obtain lock on routing table {}", err);
+                    thread::sleep(Duration::from_millis(100));
                     continue;
                 }
             };
-
             let sample_size =
                 (routing_table.buckets.len() as f64 * SAMPLE_PERCENTAGE_BUCKETS_TO_PING) as usize;
 
@@ -207,13 +193,12 @@ impl Node {
     /// random key in the buckets' range.
     fn bootstrap_routing_table(&mut self) {
         let target_key = self.node_data.id;
-
         self.lookup_nodes(&target_key, true);
-        let bucket_size = if let Ok(routing_table) = self.routing_table.lock() {
-            routing_table.size()
-        } else {
-            0
-        };
+        let bucket_size = self
+            .routing_table
+            .lock()
+            .map_or(0, |routing_table| routing_table.size());
+
         for i in 0..bucket_size {
             self.lookup_nodes(&Key::rand_in_range(i), true);
         }
@@ -258,7 +243,6 @@ impl Node {
         );
         self.clone().update_routing_table(request.sender.clone());
         let receiver = (*self.node_data).clone();
-        const RETRY_ATTEMPTS: i32 = 3;
         let payload = match request.payload.clone() {
             RequestPayload::Ping => ResponsePayload::Pong,
             RequestPayload::Store(key, value) => {
@@ -458,7 +442,7 @@ impl Node {
     /// `REPLICATION_PARAM` active nodes.
     fn lookup_nodes(&mut self, key: &Key, find_node: bool) -> ResponsePayload {
         let routing_table_result = self.routing_table.lock().map_err(|e| {
-            ResponsePayload::Error("Failed to acquire lock on routing table".to_string())
+            ResponsePayload::Error(format!("Failed to acquire lock on routing table {}",e).to_string())
         });
         match routing_table_result {
             Ok(routing_table) => {

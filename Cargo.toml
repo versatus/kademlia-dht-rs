@@ -12,7 +12,6 @@ edition = "2018"
 
 [dependencies]
 bincode = "0.9"
-log = "0.4"
 rand = "0.8.5"
 serde = "1.0"
 serde_derive = "1.0"
@@ -21,8 +20,7 @@ simplelog = "0.5"
 time = "0.1"
 clap = {version="4.0.32",features=["derive"]}
 hex="*"
-lazy_static = "1.4.0"
-flexi_logger = {version="0.25.5",features=["compress"]}
+tracing = "0.1.36"
 
 [dev-dependencies]
 num-bigint = "0.1"

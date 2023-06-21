@@ -2,13 +2,13 @@ use crate::key::Key;
 use crate::node::node_data::NodeData;
 use crate::MESSAGE_LENGTH;
 use bincode;
-use log::{error, warn};
 use serde_derive::{Deserialize, Serialize};
 use std::net::UdpSocket;
 use std::str;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 use std::thread;
+use tracing::{error, warn};
 
 /// An enum representing a request RPC.
 ///
@@ -50,7 +50,7 @@ pub enum ResponsePayload {
     Nodes(Vec<NodeData>),
     Value(String),
     Pong,
-    Error(String)
+    Error(String),
 }
 
 /// An enum that represents a message that is sent between nodes.
@@ -77,10 +77,10 @@ impl Protocol {
         thread::spawn(move || {
             let mut buffer = [0u8; MESSAGE_LENGTH];
             loop {
-                if let Ok( (len, _src_addr) )= protocol.socket.recv_from(&mut buffer){
-                   if let Ok(message) =  bincode::deserialize(&buffer[..len]){
-                        if tx.send(message).is_err() {
-                            warn!("Protocol: Connection closed.");
+                if let Ok((len, _src_addr)) = protocol.socket.recv_from(&mut buffer) {
+                    if let Ok(message) = bincode::deserialize(&buffer[..len]) {
+                        if let Err(err) = tx.send(message) {
+                            error!("Protocol: Error sending message: {}", err);
                             break;
                         }
                     }
@@ -104,5 +104,4 @@ impl Protocol {
             warn!("Protocol: Failed to send data: {}", err);
         }
     }
-
 }
