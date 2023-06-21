@@ -23,7 +23,6 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use flexi_logger::{FileSpec, Logger};
 lazy_static! {
     static ref LOGGER_INIT: std::sync::Once = std::sync::Once::new();
 }
@@ -101,6 +100,9 @@ impl Node {
         ret
     }
 
+    pub fn routing_table(&self)->RoutingTable{
+        self.routing_table.lock().unwrap().clone()
+    }
     fn clone_into_array<A, T>(slice: &[T]) -> A
     where
         A: Sized + Default + AsMut<[T]>,
