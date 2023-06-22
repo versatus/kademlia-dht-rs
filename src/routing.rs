@@ -1,6 +1,6 @@
 use crate::key::Key;
 use crate::node::node_data::NodeData;
-use crate::{BUCKET_REFRESH_INTERVAL, REPLICATION_PARAM, ROUTING_TABLE_SIZE};
+use crate::{BUCKET_REFRESH_INTERVAL, NodeType, REPLICATION_PARAM, ROUTING_TABLE_SIZE};
 use std::sync::Arc;
 use std::{cmp, mem};
 use time::{Duration, SteadyTime};
@@ -179,6 +179,12 @@ impl RoutingTable {
         ret.sort_by_key(|node| node.id.xor(key));
         ret.truncate(count);
         ret
+    }
+
+    /// Returns the closest `count` nodes to `key`.
+    pub fn get_closest_nodes_of_type(&self, key: &Key, node_type:NodeType) -> Vec<NodeData> {
+        let nodes=self.get_closest_nodes(key,self.total_peers());
+        nodes.iter().filter(|node|node.node_type==node_type).cloned().collect()
     }
 
     /// Removes the least recently seen node from a particular routing bucket in the routing table.

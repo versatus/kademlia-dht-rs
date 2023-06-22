@@ -1,4 +1,4 @@
-use kademlia_dht::Node;
+use kademlia_dht::{Node, NodeType};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::thread;
 use std::time::Duration;
@@ -11,16 +11,16 @@ fn main() {
     let node_4 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
     let node_5 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
 
-    let mut node = Node::new(boostrap_addr, boostrap_addr.clone(), None).unwrap();
+    let mut node = Node::new(boostrap_addr, boostrap_addr.clone(), None,NodeType::Bootstrap).unwrap();
     let key = Node::get_key("Hello");
     let value = "World";
     println!("Node Data {:?}", node.node_data());
-    let mut node1 = Node::new(node_1, node_1, Some(node.node_data())).unwrap();
+    let mut node1 = Node::new(node_1, node_1, Some(node.node_data()),NodeType::Miner).unwrap();
     node.insert(key, value);
-    let mut node2 = Node::new(node_2, node_2, Some(node.node_data())).unwrap();
-    let node3 = Node::new(node_3, node_3, Some(node.node_data())).unwrap();
-    let node4 = Node::new(node_4, node_4, Some(node.node_data())).unwrap();
-    let node5 = Node::new(node_5, node_5, Some(node.node_data())).unwrap();
+    let mut node2 = Node::new(node_2, node_2, Some(node.node_data()),NodeType::Harvester).unwrap();
+    let node3 = Node::new(node_3, node_3, Some(node.node_data()),NodeType::Harvester).unwrap();
+    let node4 = Node::new(node_4, node_4, Some(node.node_data()),NodeType::Farmer).unwrap();
+    let node5 = Node::new(node_5, node_5, Some(node.node_data()),NodeType::Miner).unwrap();
 
     // inserting is asynchronous, so sleep for a second
     thread::sleep(Duration::from_millis(1000));
@@ -68,4 +68,8 @@ fn main() {
 
     println!("NeighbourHood  for 3 :{:?}", c);
     println!("Ne {:?}", node.routing_table().unwrap().total_peers());
+
+
+
+    println!("Nodes :{:?}",node1.routing_table().unwrap().get_closest_nodes_of_type(&node1.node_data().id,NodeType::Miner));
 }

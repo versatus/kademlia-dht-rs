@@ -3,6 +3,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::net::SocketAddr;
+use crate::NodeType;
 
 /// A struct that contains the address and id of a node.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
@@ -15,14 +16,17 @@ pub struct NodeData {
 
     /// Address the node uses for gossiping.
     pub udp_gossip_addr: SocketAddr,
+
+    pub node_type:NodeType,
 }
 
 impl NodeData {
-    pub fn new(id: Key, addr: SocketAddr, udp_gossip_addr: SocketAddr) -> Self {
+    pub fn new(id: Key, addr: SocketAddr, udp_gossip_addr: SocketAddr,node_type:NodeType) -> Self {
         NodeData {
             id,
             addr,
             udp_gossip_addr,
+            node_type
         }
     }
 }

@@ -6,8 +6,8 @@ use crate::protocol::{Message, Protocol, Request, RequestPayload, Response, Resp
 use crate::routing::{RoutingBucket, RoutingTable};
 use crate::storage::Storage;
 use crate::{
-    BUCKET_REFRESH_INTERVAL, CONCURRENCY_PARAM, KEY_LENGTH, PING_TIME_INTERVAL, REPLICATION_PARAM,
-    REQUEST_TIMEOUT, RETRY_ATTEMPTS, SAMPLE_PERCENTAGE_BUCKETS_TO_PING,
+    NodeType, BUCKET_REFRESH_INTERVAL, CONCURRENCY_PARAM, KEY_LENGTH, PING_TIME_INTERVAL,
+    REPLICATION_PARAM, REQUEST_TIMEOUT, RETRY_ATTEMPTS, SAMPLE_PERCENTAGE_BUCKETS_TO_PING,
     SAMPLE_PERCENTAGE_NODES_TO_PING,
 };
 use rand::seq::SliceRandom;
@@ -41,6 +41,7 @@ impl Node {
         addr: SocketAddr,
         udp_gossip_addr: SocketAddr,
         bootstrap: Option<NodeData>,
+        node_type: NodeType,
     ) -> Result<Self, io::Error> {
         let socket = UdpSocket::bind(addr).map_err(|err| {
             error!("Error: could not bind to address: {}", err);
@@ -57,6 +58,7 @@ impl Node {
             id: Key::rand(),
             addr,
             udp_gossip_addr,
+            node_type,
         });
         let mut routing_table = RoutingTable::new(Arc::clone(&node_data));
         let (message_tx, message_rx) = channel();

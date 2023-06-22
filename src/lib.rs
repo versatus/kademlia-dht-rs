@@ -7,6 +7,7 @@ mod storage;
 pub use self::key::Key;
 pub use self::node::node_data::NodeData;
 pub use self::node::Node;
+use serde_derive::{Deserialize, Serialize};
 
 /// The number of bytes in a key.
 const KEY_LENGTH: usize = 32;
@@ -43,3 +44,12 @@ const PING_TIME_INTERVAL: u64 = 10;
 
 /// `RETRY_ATTEMPTS` is a constant that specifies the maximum number of retry attempts for any operation
 const RETRY_ATTEMPTS: i32 = 3;
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
+pub enum NodeType{
+    Bootstrap,
+    Farmer,
+    Harvester,
+    Miner,
+    Other(String)
+}

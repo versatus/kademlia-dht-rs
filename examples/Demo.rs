@@ -1,5 +1,5 @@
 use clap::Parser;
-use kademlia_dht::{Key, Node, NodeData};
+use kademlia_dht::{Key, Node, NodeData, NodeType};
 use sha3::{Digest, Sha3_256};
 use std::convert::TryFrom;
 use std::io;
@@ -54,7 +54,7 @@ fn main() {
     let args = Args::parse();
     let bootstrap_socket_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
     let mut node = if args.is_bootstrap {
-        let n = Node::new(bootstrap_socket_addr, bootstrap_socket_addr, None).unwrap();
+        let n = Node::new(bootstrap_socket_addr, bootstrap_socket_addr, None,NodeType::Bootstrap).unwrap();
         let k = n.node_data().id.0;
         println!("Key {:?}", hex::encode(k.to_vec()));
         println!("Node Key is {:?}", n.node_data().id);
@@ -64,8 +64,8 @@ fn main() {
         let data = hex::decode(&args.bootstrap_key.unwrap()).unwrap();
         println!("Key is {:?}", data);
         let key: kademlia_dht::Key = Key::try_from(data).unwrap();
-        let node_data = NodeData::new(key, bootstrap_socket_addr, bootstrap_socket_addr);
-        Node::new(node_socket_addr, node_socket_addr, Some(node_data)).unwrap()
+        let node_data = NodeData::new(key, bootstrap_socket_addr, bootstrap_socket_addr,NodeType::Miner);
+        Node::new(node_socket_addr, node_socket_addr, Some(node_data),NodeType::Miner).unwrap()
     };
 
     let c = thread::spawn(move || loop {
