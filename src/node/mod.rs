@@ -10,7 +10,6 @@ use crate::{
     REQUEST_TIMEOUT, RETRY_ATTEMPTS, SAMPLE_PERCENTAGE_BUCKETS_TO_PING,
     SAMPLE_PERCENTAGE_NODES_TO_PING,
 };
-use tracing::{info,debug,warn,error};
 use rand::seq::SliceRandom;
 use sha3::{Digest, Sha3_256};
 use std::collections::{BinaryHeap, HashMap, HashSet};
@@ -21,6 +20,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use std::{cmp, io};
+use tracing::{debug, error, info, warn};
 
 /// A node in the Kademlia DHT.
 #[derive(Debug, Clone)]
@@ -85,7 +85,10 @@ impl Node {
     }
 
     pub fn routing_table(&self) -> Result<RoutingTable, String> {
-        self.routing_table.lock().map(|guard| guard.clone()).map_err(|_| "Error: Failed to acquire lock".to_string())
+        self.routing_table
+            .lock()
+            .map(|guard| guard.clone())
+            .map_err(|_| "Error: Failed to acquire lock".to_string())
     }
 
     fn clone_into_array<A, T>(slice: &[T]) -> A
@@ -155,7 +158,7 @@ impl Node {
                     Message::Response(response) => node.handle_response(&response),
                     Message::Kill => {
                         node.is_active.store(false, Ordering::Release);
-                        info!("{} - Killed message handler", node.node_data.addr);
+                        debug!("{} - Killed message handler", node.node_data.addr);
                         break;
                     }
                 }
@@ -312,7 +315,7 @@ impl Node {
         if let Ok(pending_requests) = self.pending_requests.lock() {
             let Response { ref request, .. } = response.clone();
             if let Some(sender) = pending_requests.get(&request.id) {
-                info!(
+                debug!(
                     "{} - Receiving response from {} {:#?}",
                     self.node_data.addr, response.receiver.addr, response.payload,
                 );
@@ -330,7 +333,7 @@ impl Node {
 
     /// Sends a request RPC.
     fn send_request(&mut self, dest: &NodeData, payload: RequestPayload) -> Option<Response> {
-        info!(
+        debug!(
             "{} - Sending request to {} {:#?}",
             self.node_data.addr, dest.addr, payload
         );
@@ -442,7 +445,9 @@ impl Node {
     /// `REPLICATION_PARAM` active nodes.
     fn lookup_nodes(&mut self, key: &Key, find_node: bool) -> ResponsePayload {
         let routing_table_result = self.routing_table.lock().map_err(|e| {
-            ResponsePayload::Error(format!("Failed to acquire lock on routing table {}",e).to_string())
+            ResponsePayload::Error(
+                format!("Failed to acquire lock on routing table {}", e).to_string(),
+            )
         });
         match routing_table_result {
             Ok(routing_table) => {
