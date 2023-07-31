@@ -24,7 +24,7 @@ impl Key {
     }
 
     /// Constructs a new, random `Key`.
-    pub(super) fn rand() -> Self {
+    pub fn rand() -> Self {
         let mut ret = Key([0; KEY_LENGTH]);
         for byte in &mut ret.0 {
             *byte = rand::random::<u8>();
