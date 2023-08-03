@@ -38,6 +38,7 @@ impl Node {
     /// Constructs a new `Node` on a specific ip and port, and bootstraps the node with an existing
     /// node if `bootstrap` is not `None`.
     pub fn new(
+        id: Option<Key>,
         addr: SocketAddr,
         udp_gossip_addr: SocketAddr,
         bootstrap: Option<NodeData>,
@@ -46,6 +47,7 @@ impl Node {
             error!("Error: could not bind to address: {}", err);
             err
         })?;
+
         let addr = socket.local_addr().map_err(|err| {
             error!(
                 "Error occurred while fetching local addr from socket :{}",
@@ -53,11 +55,13 @@ impl Node {
             );
             err
         })?;
+
         let node_data = Arc::new(NodeData {
-            id: Key::rand(),
+            id: id.unwrap_or_else(Key::rand),
             addr,
             udp_gossip_addr,
         });
+
         let mut routing_table = RoutingTable::new(Arc::clone(&node_data));
         let (message_tx, message_rx) = channel();
         let protocol = Protocol::new(socket, message_tx);
