@@ -15,9 +15,12 @@ use tracing::{error, warn};
 /// Each request RPC also carries a randomly generated key. The response to the RPC must contain
 /// the same randomly generated key or else it will be ignored.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Request {
+pub struct Request<D>
+where
+    D: std::fmt::Debug + Clone + Eq + PartialEq,
+{
     pub id: Key,
-    pub sender: NodeData,
+    pub sender: NodeData<D>,
     pub payload: RequestPayload,
 }
 
@@ -35,10 +38,13 @@ pub enum RequestPayload {
 
 /// An enum representing the response to a request RPC.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Response {
-    pub request: Request,
-    pub receiver: NodeData,
-    pub payload: ResponsePayload,
+pub struct Response<D>
+where
+    D: std::fmt::Debug + Clone + Eq + PartialEq,
+{
+    pub request: Request<D>,
+    pub receiver: NodeData<D>,
+    pub payload: ResponsePayload<D>,
 }
 
 /// An enum representing the payload to a response RPC.
@@ -46,8 +52,11 @@ pub struct Response {
 /// As stated in the Kademlia paper, a response to a request could be a list of nodes, a value, or
 /// a pong.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum ResponsePayload {
-    Nodes(Vec<NodeData>),
+pub enum ResponsePayload<D>
+where
+    D: std::fmt::Debug + Clone + Eq + PartialEq,
+{
+    Nodes(Vec<NodeData<D>>),
     Value(String),
     Pong,
     Error(String),
@@ -55,24 +64,36 @@ pub enum ResponsePayload {
 
 /// An enum that represents a message that is sent between nodes.
 #[derive(Serialize, Deserialize, Debug)]
-pub enum Message {
-    Request(Request),
-    Response(Response),
+pub enum Message<D>
+where
+    D: std::fmt::Debug + Clone + Eq + PartialEq,
+{
+    Request(Request<D>),
+    Response(Response<D>),
     Kill,
 }
 
 /// `Protocol` facilitates the underlying communication between nodes by sending messages to other
 /// nodes, and by passing messages from other nodes to the current node.
 #[derive(Debug, Clone)]
-pub struct Protocol {
+pub struct Protocol<D>
+where
+    D: std::fmt::Debug + Clone + Eq + PartialEq,
+{
     socket: Arc<UdpSocket>,
+    _phantom: std::marker::PhantomData<D>,
 }
 
-impl Protocol {
-    pub fn new(socket: UdpSocket, tx: Sender<Message>) -> Protocol {
+impl<D> Protocol<D>
+where
+    D: std::fmt::Debug + Clone + Eq + PartialEq,
+{
+    pub fn new(socket: UdpSocket, tx: Sender<Message<D>>) -> Protocol<D> {
         let protocol = Protocol {
             socket: Arc::new(socket),
+            _phantom: std::marker::PhantomData,
         };
+
         let ret = protocol.clone();
         thread::spawn(move || {
             let mut buffer = [0u8; MESSAGE_LENGTH];
@@ -90,7 +111,7 @@ impl Protocol {
         ret
     }
 
-    pub fn send_message(&self, message: &Message, node_data: &NodeData) {
+    pub fn send_message(&self, message: &Message<D>, node_data: &NodeData<D>) {
         let size_limit = bincode::Bounded(MESSAGE_LENGTH as u64);
         let buffer_string = match bincode::serialize(&message, size_limit) {
             Ok(buffer) => buffer,

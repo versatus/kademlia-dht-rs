@@ -13,6 +13,7 @@ use crate::{
 use rand::seq::SliceRandom;
 use sha3::{Digest, Sha3_256};
 use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::fmt::Debug;
 use std::net::{SocketAddr, UdpSocket};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -24,24 +25,31 @@ use tracing::{debug, error, info, warn};
 
 /// A node in the Kademlia DHT.
 #[derive(Debug, Clone)]
-pub struct Node {
-    node_data: Arc<NodeData>,
-    routing_table: Arc<Mutex<RoutingTable>>,
+pub struct Node<D>
+where
+    D: std::fmt::Debug + Clone + Eq + PartialEq,
+{
+    node_data: Arc<NodeData<D>>,
+    routing_table: Arc<Mutex<RoutingTable<D>>>,
     storage: Arc<Mutex<Storage>>,
-    pending_requests: Arc<Mutex<HashMap<Key, Sender<Response>>>>,
-    protocol: Arc<Protocol>,
+    pending_requests: Arc<Mutex<HashMap<Key, Sender<Response<D>>>>>,
+    protocol: Arc<Protocol<D>>,
     is_active: Arc<AtomicBool>,
     // request_timeout: Option<u64>,
 }
 
-impl Node {
+impl<D> Node<D>
+where
+    D: std::fmt::Debug + Clone + Eq + PartialEq,
+{
     /// Constructs a new `Node` on a specific ip and port, and bootstraps the node with an existing
     /// node if `bootstrap` is not `None`.
     pub fn new(
         id: Option<Key>,
         addr: SocketAddr,
         udp_gossip_addr: SocketAddr,
-        bootstrap: Option<NodeData>,
+        bootstrap: Option<NodeData<D>>,
+        metadata: Option<D>,
     ) -> Result<Self, io::Error> {
         let socket = UdpSocket::bind(addr).map_err(|err| {
             error!("Error: could not bind to address: {}", err);
@@ -60,6 +68,7 @@ impl Node {
             id: id.unwrap_or_else(Key::rand),
             addr,
             udp_gossip_addr,
+            metadata,
         });
 
         let mut routing_table = RoutingTable::new(Arc::clone(&node_data));
@@ -88,7 +97,7 @@ impl Node {
         Ok(ret)
     }
 
-    pub fn routing_table(&self) -> Result<RoutingTable, String> {
+    pub fn routing_table(&self) -> Result<RoutingTable<D>, String> {
         self.routing_table
             .lock()
             .map(|guard| guard.clone())
@@ -153,7 +162,7 @@ impl Node {
     }
 
     /// Starts a thread that listens to responses.
-    fn start_message_handler(&self, rx: Receiver<Message>) {
+    fn start_message_handler(&self, rx: Receiver<Message<D>>) {
         let mut node = self.clone();
         thread::spawn(move || {
             for request in rx.iter() {
@@ -214,7 +223,7 @@ impl Node {
     /// Upserts the routing table. If the node cannot be inserted into the routing table, it
     /// removes and pings the least recently seen node. If the least recently seen node responds,
     /// it will be readded into the routing table, and the current node will be ignored.
-    fn update_routing_table(&mut self, node_data: NodeData) {
+    fn update_routing_table(&mut self, node_data: NodeData<D>) {
         debug!("{} updating {}", self.node_data.addr, node_data.addr);
         let mut node = self.clone();
         thread::spawn(move || {
@@ -243,7 +252,7 @@ impl Node {
     }
 
     /// Handles a request RPC.
-    fn handle_request(&mut self, request: &Request) {
+    fn handle_request(&mut self, request: &Request<D>) {
         info!(
             "{} - Receiving request from {} {:#?}",
             self.node_data.addr, request.sender.addr, request.payload,
@@ -314,7 +323,7 @@ impl Node {
 
     /// Handles a response RPC. If the id in the response does not match any outgoing request, then
     /// the response will be ignored.
-    fn handle_response(&mut self, response: &Response) {
+    fn handle_response(&mut self, response: &Response<D>) {
         self.clone().update_routing_table(response.receiver.clone());
         if let Ok(pending_requests) = self.pending_requests.lock() {
             let Response { ref request, .. } = response.clone();
@@ -336,7 +345,7 @@ impl Node {
     }
 
     /// Sends a request RPC.
-    fn send_request(&mut self, dest: &NodeData, payload: RequestPayload) -> Option<Response> {
+    fn send_request(&mut self, dest: &NodeData<D>, payload: RequestPayload) -> Option<Response<D>> {
         debug!(
             "{} - Sending request to {} {:#?}",
             self.node_data.addr, dest.addr, payload
@@ -374,10 +383,6 @@ impl Node {
                 Some(response)
             }
             Ok(Err(_)) => {
-                println!(
-                    "{} - Request to {} timed out after waiting for {} milliseconds",
-                    self.node_data.addr, dest.addr, REQUEST_TIMEOUT
-                );
                 warn!(
                     "{} - Request to {} timed out after waiting for {} milliseconds",
                     self.node_data.addr, dest.addr, REQUEST_TIMEOUT
@@ -398,31 +403,31 @@ impl Node {
     }
 
     /// Sends a `PING` RPC.
-    pub fn rpc_ping(&mut self, dest: &NodeData) -> Option<Response> {
+    pub fn rpc_ping(&mut self, dest: &NodeData<D>) -> Option<Response<D>> {
         self.send_request(dest, RequestPayload::Ping)
     }
 
     /// Sends a `STORE` RPC.
-    fn rpc_store(&mut self, dest: &NodeData, key: Key, value: String) -> Option<Response> {
+    fn rpc_store(&mut self, dest: &NodeData<D>, key: Key, value: String) -> Option<Response<D>> {
         self.send_request(dest, RequestPayload::Store(key, value))
     }
 
     /// Sends a `FIND_NODE` RPC.
-    fn rpc_find_node(&mut self, dest: &NodeData, key: &Key) -> Option<Response> {
+    fn rpc_find_node(&mut self, dest: &NodeData<D>, key: &Key) -> Option<Response<D>> {
         self.send_request(dest, RequestPayload::FindNode(*key))
     }
 
     /// Sends a `FIND_VALUE` RPC.
-    fn rpc_find_value(&mut self, dest: &NodeData, key: &Key) -> Option<Response> {
+    fn rpc_find_value(&mut self, dest: &NodeData<D>, key: &Key) -> Option<Response<D>> {
         self.send_request(dest, RequestPayload::FindValue(*key))
     }
 
     /// Spawns a thread that sends either a `FIND_NODE` or a `FIND_VALUE` RPC.
     fn spawn_find_rpc(
         mut self,
-        dest: NodeData,
+        dest: NodeData<D>,
         key: Key,
-        sender: Sender<Option<Response>>,
+        sender: Sender<Option<Response<D>>>,
         find_node: bool,
     ) {
         thread::spawn(move || {
@@ -447,7 +452,7 @@ impl Node {
     /// a closer node for a round of RPCs or if runs out of nodes to query. Finally, it will query
     /// the remaining nodes in its shortlist until there are no remaining nodes or if it has found
     /// `REPLICATION_PARAM` active nodes.
-    fn lookup_nodes(&mut self, key: &Key, find_node: bool) -> ResponsePayload {
+    fn lookup_nodes(&mut self, key: &Key, find_node: bool) -> ResponsePayload<D> {
         let routing_table_result = self.routing_table.lock().map_err(|e| {
             ResponsePayload::Error(
                 format!("Failed to acquire lock on routing table {}", e).to_string(),
@@ -621,13 +626,13 @@ impl Node {
     }
 
     /// Returns a reference to the `RoutingTable` associated with the node.
-    pub fn get_routing_table(&self) -> RoutingTable {
+    pub fn get_routing_table(&self) -> RoutingTable<D> {
         // TODO: address unwrap later
         self.routing_table.try_lock().unwrap().clone()
     }
 
     /// Returns the `NodeData` associated with the node.
-    pub fn node_data(&self) -> NodeData {
+    pub fn node_data(&self) -> NodeData<D> {
         (*self.node_data).clone()
     }
 
