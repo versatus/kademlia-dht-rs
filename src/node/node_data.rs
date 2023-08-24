@@ -4,11 +4,13 @@ use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::net::SocketAddr;
 
-/// A struct that contains the address and id of a node.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub struct NodeData {
     /// The id of the node.
     pub id: Key,
+
+    // NOTE: workaround to share ptorocol specific IDs around until Key can be refactored
+    pub node_id: String,
 
     /// The address of the node.
     pub addr: SocketAddr,
@@ -18,9 +20,9 @@ pub struct NodeData {
 }
 
 impl NodeData {
-    pub fn new(id: Key, addr: SocketAddr, udp_gossip_addr: SocketAddr) -> Self {
+    pub fn new(id: Key, node_id: String, addr: SocketAddr, udp_gossip_addr: SocketAddr) -> Self {
         NodeData {
-            id,
+            id, node_id,
             addr,
             udp_gossip_addr,
         }
