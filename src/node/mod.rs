@@ -39,6 +39,7 @@ impl Node {
     /// node if `bootstrap` is not `None`.
     pub fn new(
         id: Option<Key>,
+        node_id: String,
         addr: SocketAddr,
         udp_gossip_addr: SocketAddr,
         bootstrap: Option<NodeData>,
@@ -58,6 +59,7 @@ impl Node {
 
         let node_data = Arc::new(NodeData {
             id: id.unwrap_or_else(Key::rand),
+            node_id,
             addr,
             udp_gossip_addr,
         });
