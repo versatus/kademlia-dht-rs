@@ -246,7 +246,7 @@ impl Node {
 
     /// Handles a request RPC.
     fn handle_request(&mut self, request: &Request) {
-        info!(
+        debug!(
             "{} - Receiving request from {} {:#?}",
             self.node_data.addr, request.sender.addr, request.payload,
         );
