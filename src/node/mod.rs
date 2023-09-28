@@ -623,9 +623,15 @@ impl Node {
     }
 
     /// Returns a reference to the `RoutingTable` associated with the node.
+    /// TODO: Currently returns a clone. WARN: Possible infinite recursion. Refactor this immediately after alphanet.
     pub fn get_routing_table(&self) -> RoutingTable {
         // TODO: address unwrap later
-        self.routing_table.try_lock().unwrap().clone()
+        if let Ok(table) = self.routing_table.try_lock() {
+            return table.to_owned();
+        } else {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            self.get_routing_table()
+        }
     }
 
     /// Returns the `NodeData` associated with the node.
